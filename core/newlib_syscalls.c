@@ -20,6 +20,15 @@
 #include <semphr.h>
 #include <esp/hwrand.h>
 
+/* definition to expand macro then apply to pragma message */
+#define VALUE_TO_STRING(x) #x
+#define VALUE(x) VALUE_TO_STRING(x)
+
+#ifndef CONSOLE_UART
+    #define CONSOLE_UART 0
+#endif
+
+#pragma message("UART being used for console: " VALUE(CONSOLE_UART))
 /*
  * The file descriptor index space is allocated in blocks. The first block of 3
  * is for newlib I/O the stdin stdout and stderr. The next block of
@@ -77,8 +86,8 @@ __attribute__((weak)) ssize_t _write_stdout_r(struct _reent *r, int fd, const vo
         if(((char *)ptr)[i] == '\r')
             continue;
         if(((char *)ptr)[i] == '\n')
-            uart_putc(0, '\r');
-        uart_putc(0, ((char *)ptr)[i]);
+            uart_putc(CONSOLE_UART, '\r');
+        uart_putc(CONSOLE_UART, ((char *)ptr)[i]);
     }
     return len;
 }
@@ -127,7 +136,7 @@ __attribute__((weak)) ssize_t _read_stdin_r(struct _reent *r, int fd, void *ptr,
     int ch, i;
     uart_rxfifo_wait(0, 1);
     for(i = 0; i < len; i++) {
-        ch = uart_getc_nowait(0);
+        ch = uart_getc_nowait(CONSOLE_UART);
         if (ch < 0) break;
         ((char *)ptr)[i] = ch;
     }
@@ -304,7 +313,7 @@ void _lock_acquire(_lock_t *lock) {
 void _lock_acquire_recursive(_lock_t *lock) {
     if (locks_initialized) {
         if (sdk_NMIIrqIsOn) {
-            uart_putc(0, ':');
+            uart_putc(CONSOLE_UART, ':');
             return;
         }
         xSemaphoreTakeRecursive((QueueHandle_t)*lock, portMAX_DELAY);
